@@ -2,8 +2,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>RuzPrompt | Digital Profile Hub</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#050914">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="RuzPrompt">
+    <link rel="apple-touch-icon" href="https://i.postimg.cc/kXNBSC5K/image.png">
+    <link rel="manifest" id="manifest-link">
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -60,6 +68,14 @@
             color: #ffffff;
             overflow-x: hidden;
             cursor: none; /* Custom cursor */
+            overscroll-behavior-y: none; /* Prevent pull-to-refresh on mobile */
+            -webkit-tap-highlight-color: transparent; /* Remove mobile tap highlight */
+            user-select: none; /* App-like feel, disable text selection globally */
+        }
+        
+        /* Allow text selection in reading areas */
+        #modal-content-box, #page-content {
+            user-select: text;
         }
 
         /* Custom Scrollbar */
@@ -821,6 +837,71 @@
 
         // Initialize 3D bg
         initThreeJS();
+
+        // --------------------------------------------------------
+        // PWA Implementation (Single File Dynamic Blob Workaround)
+        // --------------------------------------------------------
+        const setupPWA = () => {
+            // 1. Generate Web App Manifest dynamically
+            const manifest = {
+                "name": "RuzPrompt Digital Hub",
+                "short_name": "RuzPrompt",
+                "description": "Premium Digital Profile Hub for RuzPrompt",
+                "start_url": "./",
+                "display": "standalone",
+                "background_color": "#050914",
+                "theme_color": "#050914",
+                "icons": [
+                    {
+                        "src": "https://i.postimg.cc/kXNBSC5K/image.png",
+                        "sizes": "192x192",
+                        "type": "image/png"
+                    },
+                    {
+                        "src": "https://i.postimg.cc/kXNBSC5K/image.png",
+                        "sizes": "512x512",
+                        "type": "image/png"
+                    }
+                ]
+            };
+            const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+            const manifestUrl = URL.createObjectURL(manifestBlob);
+            document.getElementById('manifest-link').setAttribute('href', manifestUrl);
+
+            // 2. Generate and Register Service Worker dynamically
+            const swCode = `
+                const CACHE_NAME = 'ruzprompt-hub-v1';
+                self.addEventListener('install', (e) => {
+                    self.skipWaiting();
+                });
+                self.addEventListener('activate', (e) => {
+                    e.waitUntil(clients.claim());
+                });
+                self.addEventListener('fetch', (e) => {
+                    e.respondWith(
+                        caches.match(e.request).then(response => {
+                            // Simple cache-first strategy for offline capabilities
+                            return response || fetch(e.request);
+                        }).catch(() => {
+                            return new Response('Offline Content Not Available');
+                        })
+                    );
+                });
+            `;
+            const swBlob = new Blob([swCode], {type: 'application/javascript'});
+            const swUrl = URL.createObjectURL(swBlob);
+
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register(swUrl)
+                        .then(reg => console.log('PWA Ready: Service Worker registered successfully.'))
+                        .catch(err => console.log('PWA Service Worker registration failed:', err));
+                });
+            }
+        };
+
+        // Initialize PWA
+        setupPWA();
 
     </script>
 </body>
